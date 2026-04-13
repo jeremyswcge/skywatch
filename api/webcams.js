@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════
 // Vercel Serverless — /api/webcams
 // ══════════════════════════════════════════════
-const fetch = require('node-fetch');
 
 const cache = new Map();
 const CACHE_TTL = 3600_000; // 1h
@@ -42,10 +41,13 @@ module.exports = async (req, res) => {
     if (q && (!lat || !lng)) {
       const owKey = process.env.OPENWEATHER_API_KEY;
       if (owKey) {
+        const gc = new AbortController();
+        const gt = setTimeout(() => gc.abort(), 5000);
         const geoResp = await fetch(
           `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=1&appid=${owKey}`,
-          { timeout: 5000 }
+          { signal: gc.signal }
         );
+        clearTimeout(gt);
         const geoData = await geoResp.json();
         if (geoData && geoData.length > 0) {
           searchLat = geoData[0].lat;
@@ -69,10 +71,13 @@ module.exports = async (req, res) => {
     }
 
     const url = `https://api.windy.com/webcams/api/v3/webcams?${params.toString()}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(url, {
       headers: { 'x-windy-api-key': windyKey },
-      timeout: 8000,
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (!response.ok) throw new Error(`Windy ${response.status}`);
     const data = await response.json();

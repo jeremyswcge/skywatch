@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════
 // Vercel Serverless — /api/weather
 // ══════════════════════════════════════════════
-const fetch = require('node-fetch');
 
 function isRealKey(k) {
   if (!k) return false;
@@ -43,7 +42,10 @@ module.exports = async (req, res) => {
     }
 
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&lang=fr&appid=${key}`;
-    const resp = await fetch(url, { timeout: 5000 });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
     if (!resp.ok) throw new Error(`OW ${resp.status}`);
     const data = await resp.json();
 
