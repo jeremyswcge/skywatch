@@ -411,14 +411,22 @@ async function init() {
   // Si Windy est configuré, charger les webcams mondiales par régions
   if (apiStatus && apiStatus.apis.windy === 'configured') {
     status.textContent = 'Chargement webcams mondiales…';
+    // Windy API: radius max 250 km — grille mondiale de points
     const regions = [
-      {lat:48.8, lng:10,    r:1500}, // Europe
-      {lat:40.7, lng:-74,   r:2000}, // Amériques Nord
-      {lat:-15,  lng:-55,   r:3000}, // Amériques Sud
-      {lat:35,   lng:135,   r:2000}, // Asie/Pacifique
-      {lat:10,   lng:100,   r:2000}, // Asie du Sud-Est
-      {lat:0,    lng:30,    r:3000}, // Afrique
-      {lat:-30,  lng:140,   r:2000}, // Australie
+      {lat:48.8, lng:2.3,   r:250}, // Paris
+      {lat:51.5, lng:-0.1,  r:250}, // Londres
+      {lat:52.5, lng:13.4,  r:250}, // Berlin
+      {lat:41.9, lng:12.5,  r:250}, // Rome
+      {lat:40.4, lng:-3.7,  r:250}, // Madrid
+      {lat:40.7, lng:-74.0, r:250}, // New York
+      {lat:34.0, lng:-118,  r:250}, // Los Angeles
+      {lat:35.7, lng:139.7, r:250}, // Tokyo
+      {lat:31.2, lng:121.5, r:250}, // Shanghai
+      {lat:-33.9,lng:151.2, r:250}, // Sydney
+      {lat:-23.5,lng:-46.6, r:250}, // São Paulo
+      {lat:55.7, lng:37.6,  r:250}, // Moscou
+      {lat:25.2, lng:55.3,  r:250}, // Dubai
+      {lat:1.3,  lng:103.8, r:250}, // Singapour
     ];
     const results = await Promise.allSettled(
       regions.map(r => API.getNearbyWebcams(r.lat, r.lng, r.r))

@@ -60,7 +60,9 @@ module.exports = async (req, res) => {
     params.set('limit', Math.min(parseInt(limit), 50));
     params.set('offset', parseInt(offset));
     params.set('include', 'location,player,urls');
-    if (searchLat && searchLon) params.set('nearby', `${searchLat},${searchLon},${radius}`);
+    // Windy API: radius max = 250 km
+    const safeRadius = Math.min(parseInt(radius), 250);
+    if (searchLat && searchLon) params.set('nearby', `${searchLat},${searchLon},${safeRadius}`);
     if (country) params.set('country', country.toUpperCase());
 
     const cacheKey = `wc:${params.toString()}`;
