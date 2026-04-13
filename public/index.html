@@ -397,27 +397,44 @@ async function init() {
   status.textContent = 'Vérification des APIs…';
   const apiStatus = await API.checkStatus();
 
-  if (apiStatus && apiStatus.apis.openweather === 'configured') {
+  if (apiStatus && (apiStatus.apis.windy === 'configured' || apiStatus.apis.openweather === 'configured')) {
     apiMode = 'live';
     status.textContent = 'APIs connectées ✓';
   } else {
     apiMode = 'demo';
-    status.textContent = 'Mode démo (ajoutez vos clés API pour le mode live)';
+    status.textContent = 'Mode démo';
   }
 
-  // Load cams
+  // Load cams (base demo cams)
   allCams = [...DEMO_CAMS];
 
-  // Si Windy est configuré, charger les webcams dynamiques
+  // Si Windy est configuré, charger les webcams mondiales par régions
   if (apiStatus && apiStatus.apis.windy === 'configured') {
-    status.textContent = 'Chargement des webcams Windy…';
-    const windyCams = await API.searchWebcams('popular');
-    if (windyCams && windyCams.length > 0) {
-      allCams = [...allCams, ...windyCams];
+    status.textContent = 'Chargement webcams mondiales…';
+    const regions = [
+      {lat:48.8, lng:10,    r:1500}, // Europe
+      {lat:40.7, lng:-74,   r:2000}, // Amériques Nord
+      {lat:-15,  lng:-55,   r:3000}, // Amériques Sud
+      {lat:35,   lng:135,   r:2000}, // Asie/Pacifique
+      {lat:10,   lng:100,   r:2000}, // Asie du Sud-Est
+      {lat:0,    lng:30,    r:3000}, // Afrique
+      {lat:-30,  lng:140,   r:2000}, // Australie
+    ];
+    const results = await Promise.allSettled(
+      regions.map(r => API.getNearbyWebcams(r.lat, r.lng, r.r))
+    );
+    const seen = new Set(allCams.map(c => c.id));
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) {
+        for (const cam of r.value) {
+          if (!seen.has(cam.id)) { allCams.push(cam); seen.add(cam.id); }
+        }
+      }
     }
   }
 
   loadFavs();
+  loadHistory();
 
   setTimeout(() => {
     document.getElementById('loader').classList.add('hidden');
@@ -672,13 +689,13 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('keysOverlay').style.display === 'flex') { if (e.key==='Escape') hideKeys(); return; }
   const vOpen = document.getElementById('viewer').classList.contains('active');
   if (e.key==='?' && !vOpen) { showKeys(); return; }
-  if ((e.key==='r'||e.key==='R') && !vOpen) { randomWebcam(); return; }
+  if ((e.key==='r'||e.key==='R') && !vOpen) { random(); return; }
   if (!vOpen) return;
   if (e.key==='Escape') closeViewer();
   if (e.key==='ArrowLeft') nav(-1);
   if (e.key==='ArrowRight') nav(1);
   if (e.key==='f'||e.key==='F') fullscreen();
-  if (e.key==='s'||e.key==='S') toggleFavFromViewer();
+  if (e.key==='s'||e.key==='S') toggleFavViewer();
 });
 
 // ─── FAVORITES ───────────────────────────
