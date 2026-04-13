@@ -19,7 +19,7 @@ function mapCategory(categories) {
   const m = { beach:'beach', city:'city', mountain:'mountain', nature:'nature',
               forest:'nature', lake:'nature', landscape:'nature', harbor:'city',
               airport:'city', traffic:'city', ski:'mountain', sportarea:'mountain' };
-  for (const c of categories) { if (m[c]) return m[c]; }
+  for (const c of (categories || [])) { if (m[c]) return m[c]; }
   return 'city';
 }
 
@@ -34,25 +34,27 @@ module.exports = async (req, res) => {
       return res.status(503).json({ error: 'Clé Windy manquante', fallback: true });
     }
 
-    const { lat, lng, radius = 50, country, limit = 50, offset = 0, q } = req.query;
+    const { lat, lng, radius = 50, country, limit = 50, offset = 0, q, orderby } = req.query;
 
-    // Si recherche textuelle, géocoder d'abord
+    // Si recherche textuelle, géocoder d'abord via OpenWeather
     let searchLat = lat, searchLon = lng;
     if (q && (!lat || !lng)) {
       const owKey = process.env.OPENWEATHER_API_KEY;
       if (owKey) {
         const gc = new AbortController();
         const gt = setTimeout(() => gc.abort(), 5000);
-        const geoResp = await fetch(
-          `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=1&appid=${owKey}`,
-          { signal: gc.signal }
-        );
-        clearTimeout(gt);
-        const geoData = await geoResp.json();
-        if (geoData && geoData.length > 0) {
-          searchLat = geoData[0].lat;
-          searchLon = geoData[0].lon;
-        }
+        try {
+          const geoResp = await fetch(
+            `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=1&appid=${owKey}`,
+            { signal: gc.signal }
+          );
+          clearTimeout(gt);
+          const geoData = await geoResp.json();
+          if (geoData && geoData.length > 0) {
+            searchLat = geoData[0].lat;
+            searchLon = geoData[0].lon;
+          }
+        } catch { clearTimeout(gt); }
       }
     }
 
@@ -60,8 +62,9 @@ module.exports = async (req, res) => {
     params.set('limit', Math.min(parseInt(limit), 50));
     params.set('offset', parseInt(offset));
     params.set('include', 'location,player,urls');
+    if (orderby) params.set('orderby', orderby);
     // Windy API: radius max = 250 km
-    const safeRadius = Math.min(parseInt(radius), 250);
+    const safeRadius = Math.min(parseInt(radius) || 50, 250);
     if (searchLat && searchLon) params.set('nearby', `${searchLat},${searchLon},${safeRadius}`);
     if (country) params.set('country', country.toUpperCase());
 
@@ -81,7 +84,7 @@ module.exports = async (req, res) => {
     });
     clearTimeout(timer);
 
-    if (!response.ok) throw new Error(`Windy ${response.status}`);
+    if (!response.ok) throw new Error(`Windy ${response.status}: ${await response.text()}`);
     const data = await response.json();
 
     const webcams = (data.webcams || []).map(w => ({
@@ -92,7 +95,7 @@ module.exports = async (req, res) => {
       continent: w.location?.continent || '',
       lat: w.location?.latitude,
       lng: w.location?.longitude,
-      category: mapCategory(w.categories || []),
+      category: mapCategory(w.categories),
       status: w.status === 'active' ? 'online' : 'offline',
       embed: `https://webcams.windy.com/webcams/public/embed/player/${w.webcamId}/day`,
       thumbnail: w.urls?.current?.desktop || w.urls?.current?.mobile || '',

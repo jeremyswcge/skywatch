@@ -381,7 +381,8 @@ const API = {
 
   async getNearbyWebcams(lat, lng, radius = 100) {
     try {
-      const r = await fetch(`${this.base}/api/webcams?lat=${lat}&lng=${lng}&radius=${radius}&limit=50`, {signal: AbortSignal.timeout(8000)});
+      const safeRadius = Math.min(radius, 250);
+      const r = await fetch(`${this.base}/api/webcams?lat=${lat}&lng=${lng}&radius=${safeRadius}&limit=50`, {signal: AbortSignal.timeout(8000)});
       if (!r.ok) return null;
       const data = await r.json();
       if (data.fallback) return null;
@@ -408,37 +409,18 @@ async function init() {
   // En mode live, pas de démos YouTube (streams morts) — on charge uniquement les cams Windy réelles
   allCams = apiMode === 'live' ? [] : [...DEMO_CAMS];
 
-  // Si Windy est configuré, charger les webcams mondiales par régions
+  // Si Windy est configuré, charger les 50 webcams les plus populaires au monde (1 seul appel)
   if (apiStatus && apiStatus.apis.windy === 'configured') {
     status.textContent = 'Chargement webcams mondiales…';
-    // Windy API: radius max 250 km — grille mondiale de points
-    const regions = [
-      {lat:48.8, lng:2.3,   r:250}, // Paris
-      {lat:51.5, lng:-0.1,  r:250}, // Londres
-      {lat:52.5, lng:13.4,  r:250}, // Berlin
-      {lat:41.9, lng:12.5,  r:250}, // Rome
-      {lat:40.4, lng:-3.7,  r:250}, // Madrid
-      {lat:40.7, lng:-74.0, r:250}, // New York
-      {lat:34.0, lng:-118,  r:250}, // Los Angeles
-      {lat:35.7, lng:139.7, r:250}, // Tokyo
-      {lat:31.2, lng:121.5, r:250}, // Shanghai
-      {lat:-33.9,lng:151.2, r:250}, // Sydney
-      {lat:-23.5,lng:-46.6, r:250}, // São Paulo
-      {lat:55.7, lng:37.6,  r:250}, // Moscou
-      {lat:25.2, lng:55.3,  r:250}, // Dubai
-      {lat:1.3,  lng:103.8, r:250}, // Singapour
-    ];
-    const results = await Promise.allSettled(
-      regions.map(r => API.getNearbyWebcams(r.lat, r.lng, r.r))
-    );
-    const seen = new Set(allCams.map(c => c.id));
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) {
-        for (const cam of r.value) {
-          if (!seen.has(cam.id)) { allCams.push(cam); seen.add(cam.id); }
+    try {
+      const r = await fetch(`${API.base}/api/webcams?orderby=popularity&limit=50`, {signal: AbortSignal.timeout(10000)});
+      if (r.ok) {
+        const data = await r.json();
+        if (data.webcams && data.webcams.length > 0) {
+          allCams = data.webcams;
         }
       }
-    }
+    } catch {}
   }
 
   loadFavs();
