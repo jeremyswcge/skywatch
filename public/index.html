@@ -405,8 +405,8 @@ async function init() {
     status.textContent = 'Mode démo';
   }
 
-  // Load cams (base demo cams)
-  allCams = [...DEMO_CAMS];
+  // En mode live, pas de démos YouTube (streams morts) — on charge uniquement les cams Windy réelles
+  allCams = apiMode === 'live' ? [] : [...DEMO_CAMS];
 
   // Si Windy est configuré, charger les webcams mondiales par régions
   if (apiStatus && apiStatus.apis.windy === 'configured') {

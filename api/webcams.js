@@ -92,8 +92,8 @@ module.exports = async (req, res) => {
       lng: w.location?.longitude,
       category: mapCategory(w.categories || []),
       status: w.status === 'active' ? 'online' : 'offline',
-      embed: w.player?.day?.embed || w.player?.lifetime?.embed || '',
-      thumbnail: w.urls?.current?.desktop || '',
+      embed: `https://webcams.windy.com/webcams/public/embed/player/${w.webcamId}/day`,
+      thumbnail: w.urls?.current?.desktop || w.urls?.current?.mobile || '',
     }));
 
     const result = { webcams, total: data.total || webcams.length, offset: parseInt(offset) };
